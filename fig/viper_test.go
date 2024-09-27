@@ -1,4 +1,4 @@
-package config
+package fig
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/nbcx/flag"
-	"github.com/nbcx/go-config/config/internal/testutil"
+	"github.com/nbcx/go-config/fig/internal/testutil"
 )
 
 // var yamlExample = []byte(`Hacker: true

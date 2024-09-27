@@ -1,14 +1,14 @@
-package config
+package fig
 
 import (
 	"errors"
 	"strings"
 	"sync"
 
-	"github.com/nbcx/go-config/config/internal/encoding/dotenv"
-	"github.com/nbcx/go-config/config/internal/encoding/json"
-	"github.com/nbcx/go-config/config/internal/encoding/toml"
-	"github.com/nbcx/go-config/config/internal/encoding/yaml"
+	"github.com/nbcx/go-config/fig/internal/encoding/dotenv"
+	"github.com/nbcx/go-config/fig/internal/encoding/json"
+	"github.com/nbcx/go-config/fig/internal/encoding/toml"
+	"github.com/nbcx/go-config/fig/internal/encoding/yaml"
 )
 
 // Encoder encodes Viper's internal data structures into a byte representation.

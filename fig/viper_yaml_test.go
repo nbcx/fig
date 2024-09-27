@@ -1,4 +1,4 @@
-package config
+package fig
 
 var yamlExample = []byte(`Hacker: true
 name: steve

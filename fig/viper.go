@@ -12,7 +12,7 @@
 // key/value store
 // default
 
-package config
+package fig
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ import (
 	"github.com/spf13/cast"
 
 	"github.com/nbcx/flag"
-	"github.com/nbcx/go-config/config/internal/features"
+	"github.com/nbcx/go-config/fig/internal/features"
 )
 
 // ConfigMarshalError happens when failing to marshal the configuration.
