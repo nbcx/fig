@@ -14,12 +14,12 @@ import (
 
 	crypt "github.com/sagikazarmark/crypt/config"
 
-	"github.com/spf13/viper"
+	"github.com/nbcx/go-config/fig"
 )
 
 type remoteConfigProvider struct{}
 
-func (rc remoteConfigProvider) Get(rp viper.RemoteProvider) (io.Reader, error) {
+func (rc remoteConfigProvider) Get(rp fig.RemoteProvider) (io.Reader, error) {
 	cm, err := getConfigManager(rp)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (rc remoteConfigProvider) Get(rp viper.RemoteProvider) (io.Reader, error) {
 	return bytes.NewReader(b), nil
 }
 
-func (rc remoteConfigProvider) Watch(rp viper.RemoteProvider) (io.Reader, error) {
+func (rc remoteConfigProvider) Watch(rp fig.RemoteProvider) (io.Reader, error) {
 	cm, err := getConfigManager(rp)
 	if err != nil {
 		return nil, err
@@ -44,24 +44,24 @@ func (rc remoteConfigProvider) Watch(rp viper.RemoteProvider) (io.Reader, error)
 	return bytes.NewReader(resp), nil
 }
 
-func (rc remoteConfigProvider) WatchChannel(rp viper.RemoteProvider) (<-chan *viper.RemoteResponse, chan bool) {
+func (rc remoteConfigProvider) WatchChannel(rp fig.RemoteProvider) (<-chan *fig.RemoteResponse, chan bool) {
 	cm, err := getConfigManager(rp)
 	if err != nil {
 		return nil, nil
 	}
 	quit := make(chan bool)
 	quitwc := make(chan bool)
-	viperResponsCh := make(chan *viper.RemoteResponse)
+	viperResponsCh := make(chan *fig.RemoteResponse)
 	cryptoResponseCh := cm.Watch(rp.Path(), quit)
 	// need this function to convert the Channel response form crypt.Response to viper.Response
-	go func(cr <-chan *crypt.Response, vr chan<- *viper.RemoteResponse, quitwc <-chan bool, quit chan<- bool) {
+	go func(cr <-chan *crypt.Response, vr chan<- *fig.RemoteResponse, quitwc <-chan bool, quit chan<- bool) {
 		for {
 			select {
 			case <-quitwc:
 				quit <- true
 				return
 			case resp := <-cr:
-				vr <- &viper.RemoteResponse{
+				vr <- &fig.RemoteResponse{
 					Error: resp.Error,
 					Value: resp.Value,
 				}
@@ -72,7 +72,7 @@ func (rc remoteConfigProvider) WatchChannel(rp viper.RemoteProvider) (<-chan *vi
 	return viperResponsCh, quitwc
 }
 
-func getConfigManager(rp viper.RemoteProvider) (crypt.ConfigManager, error) {
+func getConfigManager(rp fig.RemoteProvider) (crypt.ConfigManager, error) {
 	var cm crypt.ConfigManager
 	var err error
 
@@ -117,5 +117,5 @@ func getConfigManager(rp viper.RemoteProvider) (crypt.ConfigManager, error) {
 }
 
 func init() {
-	viper.RemoteConfig = &remoteConfigProvider{}
+	fig.RemoteConfig = &remoteConfigProvider{}
 }

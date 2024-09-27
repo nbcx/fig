@@ -29,7 +29,7 @@ func ExampleFinder() {
 	v.SetFs(fs)
 	v.ReadInConfig()
 
-	fmt.Println(v.GetString("foo"))
+	fmt.Println(v.Get("foo").(string))
 
 	// Output:
 	// bar
@@ -64,7 +64,7 @@ func ExampleFinders() {
 	v.SetFs(fs)
 	v.ReadInConfig()
 
-	fmt.Println(v.GetString("foo"))
+	fmt.Println(v.Get("foo").(string))
 
 	// Output:
 	// bar
