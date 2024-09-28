@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/nbcx/go-config/fig/internal/encoding/dotenv"
+	"github.com/nbcx/go-config/fig/internal/encoding/ini"
 	"github.com/nbcx/go-config/fig/internal/encoding/json"
 	"github.com/nbcx/go-config/fig/internal/encoding/toml"
 	"github.com/nbcx/go-config/fig/internal/encoding/yaml"
@@ -173,6 +174,8 @@ func (r *DefaultCodecRegistry) codec(format string) (Codec, bool) {
 	case "toml":
 		return toml.Codec{}, true
 
+	case "ini":
+		return ini.Codec{}, true
 	case "dotenv", "env":
 		return &dotenv.Codec{}, true
 	}
