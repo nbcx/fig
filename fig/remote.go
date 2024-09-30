@@ -190,7 +190,7 @@ func (v *Viper) getKeyValueConfig() error {
 			continue
 		}
 
-		v.kvstore = val
+		v.kvStore = val
 
 		return nil
 	}
@@ -202,8 +202,8 @@ func (v *Viper) getRemoteConfig(provider RemoteProvider) (map[string]any, error)
 	if err != nil {
 		return nil, err
 	}
-	err = v.unmarshalReader(reader, v.kvstore)
-	return v.kvstore, err
+	err = v.unmarshalReader(reader, v.kvStore)
+	return v.kvStore, err
 }
 
 // Retrieve the first found remote configuration.
@@ -219,7 +219,7 @@ func (v *Viper) watchKeyValueConfigOnChannel() error {
 			for {
 				b := <-rc
 				reader := bytes.NewReader(b.Value)
-				v.unmarshalReader(reader, v.kvstore)
+				v.unmarshalReader(reader, v.kvStore)
 			}
 		}(respc)
 		return nil
@@ -240,7 +240,7 @@ func (v *Viper) watchKeyValueConfig() error {
 
 			continue
 		}
-		v.kvstore = val
+		v.kvStore = val
 		return nil
 	}
 	return RemoteConfigError("No Files Found")
@@ -251,6 +251,6 @@ func (v *Viper) watchRemoteConfig(provider RemoteProvider) (map[string]any, erro
 	if err != nil {
 		return nil, err
 	}
-	err = v.unmarshalReader(reader, v.kvstore)
-	return v.kvstore, err
+	err = v.unmarshalReader(reader, v.kvStore)
+	return v.kvStore, err
 }

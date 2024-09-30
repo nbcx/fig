@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/afero"
 
 	"github.com/nbcx/flag"
+	"github.com/nbcx/go-kit/to"
 )
 
 var v *Viper
@@ -102,7 +103,7 @@ func GetViper() *Viper {
 // override, flag, env, config file, key/value store, default
 //
 // Get returns an interface. For a specific value use one of the Get____ methods.
-func Get(key string) any { return v.Get(key) }
+func Get(key string, def ...any) to.Value { return v.Get(key, def...) }
 
 // Sub returns new Viper instance representing a sub tree of this instance.
 // Sub is case-insensitive for a key.

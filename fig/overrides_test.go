@@ -66,7 +66,7 @@ func TestNestedOverrides(t *testing.T) {
 	overrideDefault(assert, "tom.age", []int{10, 20}, "tom.age", []int{30, 40})
 	v = override(assert, "tom.age", []int{10, 20}, "tom.age", []int{30, 40})
 	// explicit array merge:
-	s, ok := v.Get("tom.age").([]int)
+	s, ok := v.get("tom.age").([]int)
 	if assert.True(ok, "tom[\"age\"] is not a slice") {
 		v.Set("tom.age", append(s, []int{50, 60}...))
 		assert.Equal([]int{30, 40, 50, 60}, v.Get("tom.age"))

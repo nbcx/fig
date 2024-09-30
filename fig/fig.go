@@ -36,6 +36,7 @@ import (
 
 	"github.com/nbcx/flag"
 	"github.com/nbcx/go-config/fig/internal/features"
+	"github.com/nbcx/go-kit/to"
 )
 
 // ConfigMarshalError happens when failing to marshal the configuration.
@@ -159,8 +160,8 @@ type Viper struct {
 	config         map[string]any
 	override       map[string]any
 	defaults       map[string]any
-	kvstore        map[string]any
-	pflags         map[string]FlagValue
+	kvStore        map[string]any
+	flags          map[string]FlagValue
 	env            map[string][]string
 	aliases        map[string]string
 	typeByDefValue bool
@@ -189,8 +190,8 @@ func New() *Viper {
 	v.parents = []string{}
 	v.override = make(map[string]any)
 	v.defaults = make(map[string]any)
-	v.kvstore = make(map[string]any)
-	v.pflags = make(map[string]FlagValue)
+	v.kvStore = make(map[string]any)
+	v.flags = make(map[string]FlagValue)
 	v.env = make(map[string][]string)
 	v.aliases = make(map[string]string)
 	v.typeByDefValue = false
@@ -661,7 +662,17 @@ func (v *Viper) SetTypeByDefaultValue(enable bool) {
 // override, flag, env, config file, key/value store, default
 //
 // Get returns an interface. For a specific value use one of the Get____ methods.
-func (v *Viper) Get(key string) any {
+func (v *Viper) Get(key string, def ...any) (vl to.Value) {
+	if val := v.get(key); val != nil {
+		return to.ValueF(val)
+	}
+	if len(def) > 0 {
+		return to.ValueF(def[0])
+	}
+	return vl
+}
+
+func (v *Viper) get(key string) any {
 	lcaseKey := strings.ToLower(key)
 	val := v.find(lcaseKey, true)
 	if val == nil {
@@ -714,7 +725,7 @@ func (v *Viper) Get(key string) any {
 // Sub is case-insensitive for a key.
 func (v *Viper) Sub(key string) *Viper {
 	subv := New()
-	data := v.Get(key)
+	data := v.get(key)
 	if data == nil {
 		return nil
 	}
@@ -858,7 +869,7 @@ func (v *Viper) BindFlagValue(key string, flag FlagValue) error {
 	if flag == nil {
 		return fmt.Errorf("flag for %q is nil", key)
 	}
-	v.pflags[strings.ToLower(key)] = flag
+	v.flags[strings.ToLower(key)] = flag
 	return nil
 }
 
@@ -930,7 +941,7 @@ func (v *Viper) find(lcaseKey string, flagDefault bool) any {
 	}
 
 	// PFlag override next
-	flag, exists := v.pflags[lcaseKey]
+	flag, exists := v.flags[lcaseKey]
 	if exists && flag.HasChanged() {
 		switch flag.ValueType() {
 		case "int", "int8", "int16", "int32", "int64":
@@ -960,7 +971,7 @@ func (v *Viper) find(lcaseKey string, flagDefault bool) any {
 			return flag.ValueString()
 		}
 	}
-	if nested && v.isPathShadowedInFlatMap(path, v.pflags) != "" {
+	if nested && v.isPathShadowedInFlatMap(path, v.flags) != "" {
 		return nil
 	}
 
@@ -998,11 +1009,11 @@ func (v *Viper) find(lcaseKey string, flagDefault bool) any {
 	}
 
 	// K/V store next
-	val = v.searchMap(v.kvstore, path)
+	val = v.searchMap(v.kvStore, path)
 	if val != nil {
 		return val
 	}
-	if nested && v.isPathShadowedInDeepMap(path, v.kvstore) != "" {
+	if nested && v.isPathShadowedInDeepMap(path, v.kvStore) != "" {
 		return nil
 	}
 
@@ -1018,7 +1029,7 @@ func (v *Viper) find(lcaseKey string, flagDefault bool) any {
 	if flagDefault {
 		// last chance: if no value is found and a flag does exist for the key,
 		// get the flag's default value even if the flag's value has not been set.
-		if flag, exists := v.pflags[lcaseKey]; exists {
+		if flag, exists := v.flags[lcaseKey]; exists {
 			switch flag.ValueType() {
 			case "int", "int8", "int16", "int32", "int64":
 				return cast.ToInt(flag.ValueString())
@@ -1093,9 +1104,9 @@ func (v *Viper) registerAlias(alias, key string) {
 				delete(v.config, alias)
 				v.config[key] = val
 			}
-			if val, ok := v.kvstore[alias]; ok {
-				delete(v.kvstore, alias)
-				v.kvstore[key] = val
+			if val, ok := v.kvStore[alias]; ok {
+				delete(v.kvStore, alias)
+				v.kvStore[key] = val
 			}
 			if val, ok := v.defaults[alias]; ok {
 				delete(v.defaults, alias)
@@ -1512,10 +1523,10 @@ func (v *Viper) AllKeys() []string {
 	// add all paths, by order of descending priority to ensure correct shadowing
 	m = v.flattenAndMergeMap(m, castMapStringToMapInterface(v.aliases), "")
 	m = v.flattenAndMergeMap(m, v.override, "")
-	m = v.mergeFlatMap(m, castMapFlagToMapInterface(v.pflags))
+	m = v.mergeFlatMap(m, castMapFlagToMapInterface(v.flags))
 	m = v.mergeFlatMap(m, castMapStringSliceToMapInterface(v.env))
 	m = v.flattenAndMergeMap(m, v.config, "")
-	m = v.flattenAndMergeMap(m, v.kvstore, "")
+	m = v.flattenAndMergeMap(m, v.kvStore, "")
 	m = v.flattenAndMergeMap(m, v.defaults, "")
 
 	// convert set of paths to list
@@ -1595,7 +1606,7 @@ func (v *Viper) getSettings(keys []string) map[string]any {
 	m := map[string]any{}
 	// start from the list of keys, and construct the map one value at a time
 	for _, k := range keys {
-		value := v.Get(k)
+		value := v.get(k)
 		if value == nil {
 			// should not happen, since AllKeys() returns only keys holding a value,
 			// check just in case anything changes
@@ -1678,9 +1689,9 @@ func (v *Viper) Debug() { v.DebugTo(os.Stdout) }
 func (v *Viper) DebugTo(w io.Writer) {
 	fmt.Fprintf(w, "Aliases:\n%#v\n", v.aliases)
 	fmt.Fprintf(w, "Override:\n%#v\n", v.override)
-	fmt.Fprintf(w, "PFlags:\n%#v\n", v.pflags)
+	fmt.Fprintf(w, "PFlags:\n%#v\n", v.flags)
 	fmt.Fprintf(w, "Env:\n%#v\n", v.env)
-	fmt.Fprintf(w, "Key/Value Store:\n%#v\n", v.kvstore)
+	fmt.Fprintf(w, "Key/Value Store:\n%#v\n", v.kvStore)
 	fmt.Fprintf(w, "Config:\n%#v\n", v.config)
 	fmt.Fprintf(w, "Defaults:\n%#v\n", v.defaults)
 }

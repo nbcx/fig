@@ -1,4 +1,4 @@
-module github.com/spf13/viper/remote
+module github.com/nbcx/go-config/fig/remote
 
 go 1.23.0
 

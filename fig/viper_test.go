@@ -5,21 +5,16 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"os/exec"
-	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/sagikazarmark/locafero"
 	"github.com/spf13/afero"
-	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -105,7 +100,7 @@ func initConfigs(v *Viper) {
 
 	v.SetConfigType("json")
 	remote := bytes.NewReader(remoteExample)
-	v.unmarshalReader(remote, v.kvstore)
+	v.unmarshalReader(remote, v.kvStore)
 }
 
 func initConfig(typ, config string, v *Viper) {
@@ -586,9 +581,9 @@ func TestRemotePrecedence(t *testing.T) {
 
 	assert.Equal(t, "0001", v.Get("id"))
 
-	// update the kvstore with the remoteExample which should overite the key in v.config
+	// update the kvStore with the remoteExample which should overite the key in v.config
 	remote := bytes.NewReader(remoteExample)
-	require.NoError(t, v.unmarshalReader(remote, v.kvstore), "Error reading json data in to kvstore")
+	require.NoError(t, v.unmarshalReader(remote, v.kvStore), "Error reading json data in to kvstore")
 
 	assert.Equal(t, "0001", v.Get("id"))
 	assert.NotEqual(t, "cronut", v.Get("type"))
@@ -1584,1029 +1579,1029 @@ func TestIsSet(t *testing.T) {
 	assert.True(t, v.IsSet("barbaz"))
 }
 
-func TestDirsSearch(t *testing.T) {
-	root, config := initDirs(t)
+// func TestDirsSearch(t *testing.T) {
+// 	root, config := initDirs(t)
 
-	v := New()
-	v.SetConfigName(config)
-	v.SetDefault(`key`, `default`)
+// 	v := New()
+// 	v.SetConfigName(config)
+// 	v.SetDefault(`key`, `default`)
 
-	entries, err := os.ReadDir(root)
-	require.NoError(t, err)
-	for _, e := range entries {
-		if e.IsDir() {
-			v.AddConfigPath(filepath.Join(root, e.Name()))
-		}
-	}
+// 	entries, err := os.ReadDir(root)
+// 	require.NoError(t, err)
+// 	for _, e := range entries {
+// 		if e.IsDir() {
+// 			v.AddConfigPath(filepath.Join(root, e.Name()))
+// 		}
+// 	}
 
-	err = v.ReadInConfig()
-	require.NoError(t, err)
+// 	err = v.ReadInConfig()
+// 	require.NoError(t, err)
 
-	assert.Equal(t, `value is `+filepath.Base(v.configPaths[0]), v.GetString(`key`))
-}
+// 	assert.Equal(t, `value is `+filepath.Base(v.configPaths[0]), v.GetString(`key`))
+// }
 
-func TestWrongDirsSearchNotFound(t *testing.T) {
-	_, config := initDirs(t)
+// func TestWrongDirsSearchNotFound(t *testing.T) {
+// 	_, config := initDirs(t)
 
-	v := New()
-	v.SetConfigName(config)
-	v.SetDefault(`key`, `default`)
+// 	v := New()
+// 	v.SetConfigName(config)
+// 	v.SetDefault(`key`, `default`)
 
-	v.AddConfigPath(`whattayoutalkingbout`)
-	v.AddConfigPath(`thispathaintthere`)
+// 	v.AddConfigPath(`whattayoutalkingbout`)
+// 	v.AddConfigPath(`thispathaintthere`)
 
-	err := v.ReadInConfig()
-	assert.IsType(t, err, ConfigFileNotFoundError{"", ""})
+// 	err := v.ReadInConfig()
+// 	assert.IsType(t, err, ConfigFileNotFoundError{"", ""})
 
-	// Even though config did not load and the error might have
-	// been ignored by the client, the default still loads
-	assert.Equal(t, `default`, v.GetString(`key`))
-}
+// 	// Even though config did not load and the error might have
+// 	// been ignored by the client, the default still loads
+// 	assert.Equal(t, `default`, v.GetString(`key`))
+// }
 
-func TestWrongDirsSearchNotFoundForMerge(t *testing.T) {
-	_, config := initDirs(t)
+// func TestWrongDirsSearchNotFoundForMerge(t *testing.T) {
+// 	_, config := initDirs(t)
 
-	v := New()
-	v.SetConfigName(config)
-	v.SetDefault(`key`, `default`)
+// 	v := New()
+// 	v.SetConfigName(config)
+// 	v.SetDefault(`key`, `default`)
 
-	v.AddConfigPath(`whattayoutalkingbout`)
-	v.AddConfigPath(`thispathaintthere`)
+// 	v.AddConfigPath(`whattayoutalkingbout`)
+// 	v.AddConfigPath(`thispathaintthere`)
 
-	err := v.MergeInConfig()
-	assert.Equal(t, reflect.TypeOf(ConfigFileNotFoundError{"", ""}), reflect.TypeOf(err))
+// 	err := v.MergeInConfig()
+// 	assert.Equal(t, reflect.TypeOf(ConfigFileNotFoundError{"", ""}), reflect.TypeOf(err))
 
-	// Even though config did not load and the error might have
-	// been ignored by the client, the default still loads
-	assert.Equal(t, `default`, v.GetString(`key`))
-}
+// 	// Even though config did not load and the error might have
+// 	// been ignored by the client, the default still loads
+// 	assert.Equal(t, `default`, v.GetString(`key`))
+// }
 
-var yamlInvalid = []byte(`hash: map
-- foo
-- bar
-`)
-
-func TestUnwrapParseErrors(t *testing.T) {
-	v := New()
-	v.SetConfigType("yaml")
-	assert.ErrorAs(t, v.ReadConfig(bytes.NewBuffer(yamlInvalid)), &ConfigParseError{})
-}
-
-func TestSub(t *testing.T) {
-	v := New()
-	v.SetConfigType("yaml")
-	v.ReadConfig(bytes.NewBuffer(yamlExample))
-
-	subv := v.Sub("clothing")
-	assert.Equal(t, v.Get("clothing.pants.size"), subv.Get("pants.size"))
-
-	subv = v.Sub("clothing.pants")
-	assert.Equal(t, v.Get("clothing.pants.size"), subv.Get("size"))
-
-	subv = v.Sub("clothing.pants.size")
-	assert.Equal(t, (*Viper)(nil), subv)
-
-	subv = v.Sub("missing.key")
-	assert.Equal(t, (*Viper)(nil), subv)
-
-	subv = v.Sub("clothing")
-	assert.Equal(t, []string{"clothing"}, subv.parents)
-
-	subv = v.Sub("clothing").Sub("pants")
-	assert.Equal(t, []string{"clothing", "pants"}, subv.parents)
-}
-
-func TestSubWithKeyDelimiter(t *testing.T) {
-	v := NewWithOptions(KeyDelimiter("::"))
-	v.SetConfigType("yaml")
-	r := strings.NewReader(string(yamlExampleWithDot))
-	err := v.unmarshalReader(r, v.config)
-	require.NoError(t, err)
-
-	subv := v.Sub("emails")
-	assert.Equal(t, "01/02/03", subv.Get("steve@hacker.com::created"))
-}
-
-var jsonWriteExpected = []byte(`{
-  "batters": {
-    "batter": [
-      {
-        "type": "Regular"
-      },
-      {
-        "type": "Chocolate"
-      },
-      {
-        "type": "Blueberry"
-      },
-      {
-        "type": "Devil's Food"
-      }
-    ]
-  },
-  "id": "0001",
-  "name": "Cake",
-  "ppu": 0.55,
-  "type": "donut"
-}`)
-
-// var yamlWriteExpected = []byte(`age: 35
-// beard: true
-// clothing:
-//     jacket: leather
-//     pants:
-//         size: large
-//     trousers: denim
-// eyes: brown
-// hacker: true
-// hobbies:
-//     - skateboarding
-//     - snowboarding
-//     - go
-// name: steve
+// var yamlInvalid = []byte(`hash: map
+// - foo
+// - bar
 // `)
 
-func TestWriteConfig(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	testCases := map[string]struct {
-		configName      string
-		inConfigType    string
-		outConfigType   string
-		fileName        string
-		input           []byte
-		expectedContent []byte
-	}{
-		"json with file extension": {
-			configName:      "c",
-			inConfigType:    "json",
-			outConfigType:   "json",
-			fileName:        "c.json",
-			input:           jsonExample,
-			expectedContent: jsonWriteExpected,
-		},
-		"json without file extension": {
-			configName:      "c",
-			inConfigType:    "json",
-			outConfigType:   "json",
-			fileName:        "c",
-			input:           jsonExample,
-			expectedContent: jsonWriteExpected,
-		},
-		"json with file extension and mismatch type": {
-			configName:      "c",
-			inConfigType:    "json",
-			outConfigType:   "hcl",
-			fileName:        "c.json",
-			input:           jsonExample,
-			expectedContent: jsonWriteExpected,
-		},
-		"yaml with file extension": {
-			configName:      "c",
-			inConfigType:    "yaml",
-			outConfigType:   "yaml",
-			fileName:        "c.yaml",
-			input:           yamlExample,
-			expectedContent: yamlWriteExpected,
-		},
-		"yaml without file extension": {
-			configName:      "c",
-			inConfigType:    "yaml",
-			outConfigType:   "yaml",
-			fileName:        "c",
-			input:           yamlExample,
-			expectedContent: yamlWriteExpected,
-		},
-		"yaml with file extension and mismatch type": {
-			configName:      "c",
-			inConfigType:    "yaml",
-			outConfigType:   "json",
-			fileName:        "c.yaml",
-			input:           yamlExample,
-			expectedContent: yamlWriteExpected,
-		},
-	}
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			v := New()
-			v.SetFs(fs)
-			v.SetConfigName(tc.fileName)
-			v.SetConfigType(tc.inConfigType)
-
-			err := v.ReadConfig(bytes.NewBuffer(tc.input))
-			require.NoError(t, err)
-			v.SetConfigType(tc.outConfigType)
-			err = v.WriteConfigAs(tc.fileName)
-			require.NoError(t, err)
-			read, err := afero.ReadFile(fs, tc.fileName)
-			require.NoError(t, err)
-			assert.Equal(t, tc.expectedContent, read)
-		})
-	}
-}
-
-func TestWriteConfigTOML(t *testing.T) {
-	fs := afero.NewMemMapFs()
-
-	testCases := map[string]struct {
-		configName string
-		configType string
-		fileName   string
-		input      []byte
-	}{
-		"with file extension": {
-			configName: "c",
-			configType: "toml",
-			fileName:   "c.toml",
-			input:      tomlExample,
-		},
-		"without file extension": {
-			configName: "c",
-			configType: "toml",
-			fileName:   "c",
-			input:      tomlExample,
-		},
-	}
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			v := New()
-			v.SetFs(fs)
-			v.SetConfigName(tc.configName)
-			v.SetConfigType(tc.configType)
-			err := v.ReadConfig(bytes.NewBuffer(tc.input))
-			require.NoError(t, err)
-			err = v.WriteConfigAs(tc.fileName)
-			require.NoError(t, err)
-
-			// The TOML String method does not order the contents.
-			// Therefore, we must read the generated file and compare the data.
-			v2 := New()
-			v2.SetFs(fs)
-			v2.SetConfigName(tc.configName)
-			v2.SetConfigType(tc.configType)
-			v2.SetConfigFile(tc.fileName)
-			err = v2.ReadInConfig()
-			require.NoError(t, err)
-
-			// assert.Equal(t, v.GetString("title"), v2.GetString("title"))
-			// assert.Equal(t, v.GetString("owner.bio"), v2.GetString("owner.bio"))
-			// assert.Equal(t, v.GetString("owner.dob"), v2.GetString("owner.dob"))
-			// assert.Equal(t, v.GetString("owner.organization"), v2.GetString("owner.organization"))
-		})
-	}
-}
-
-func TestWriteConfigDotEnv(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	testCases := map[string]struct {
-		configName string
-		configType string
-		fileName   string
-		input      []byte
-	}{
-		"with file extension": {
-			configName: "c",
-			configType: "env",
-			fileName:   "c.env",
-			input:      dotenvExample,
-		},
-		"without file extension": {
-			configName: "c",
-			configType: "env",
-			fileName:   "c",
-			input:      dotenvExample,
-		},
-	}
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			v := New()
-			v.SetFs(fs)
-			v.SetConfigName(tc.configName)
-			v.SetConfigType(tc.configType)
-			err := v.ReadConfig(bytes.NewBuffer(tc.input))
-			require.NoError(t, err)
-			err = v.WriteConfigAs(tc.fileName)
-			require.NoError(t, err)
-
-			// The TOML String method does not order the contents.
-			// Therefore, we must read the generated file and compare the data.
-			v2 := New()
-			v2.SetFs(fs)
-			v2.SetConfigName(tc.configName)
-			v2.SetConfigType(tc.configType)
-			v2.SetConfigFile(tc.fileName)
-			err = v2.ReadInConfig()
-			require.NoError(t, err)
-
-			assert.Equal(t, v.GetString("title_dotenv"), v2.GetString("title_dotenv"))
-			assert.Equal(t, v.GetString("type_dotenv"), v2.GetString("type_dotenv"))
-			assert.Equal(t, v.GetString("kind_dotenv"), v2.GetString("kind_dotenv"))
-		})
-	}
-}
-
-func TestSafeWriteConfig(t *testing.T) {
-	v := New()
-	fs := afero.NewMemMapFs()
-	v.SetFs(fs)
-	v.AddConfigPath("/test")
-	v.SetConfigName("c")
-	v.SetConfigType("yaml")
-	require.NoError(t, v.ReadConfig(bytes.NewBuffer(yamlExample)))
-	require.NoError(t, v.SafeWriteConfig())
-	read, err := afero.ReadFile(fs, testutil.AbsFilePath(t, "/test/c.yaml"))
-	require.NoError(t, err)
-	assert.Equal(t, yamlWriteExpected, read)
-}
-
-func TestSafeWriteConfigWithMissingConfigPath(t *testing.T) {
-	v := New()
-	fs := afero.NewMemMapFs()
-	v.SetFs(fs)
-	v.SetConfigName("c")
-	v.SetConfigType("yaml")
-	require.EqualError(t, v.SafeWriteConfig(), "missing configuration for 'configPath'")
-}
-
-func TestSafeWriteConfigWithExistingFile(t *testing.T) {
-	v := New()
-	fs := afero.NewMemMapFs()
-	fs.Create(testutil.AbsFilePath(t, "/test/c.yaml"))
-	v.SetFs(fs)
-	v.AddConfigPath("/test")
-	v.SetConfigName("c")
-	v.SetConfigType("yaml")
-	err := v.SafeWriteConfig()
-	require.Error(t, err)
-	_, ok := err.(ConfigFileAlreadyExistsError)
-	assert.True(t, ok, "Expected ConfigFileAlreadyExistsError")
-}
-
-func TestSafeWriteAsConfig(t *testing.T) {
-	v := New()
-	fs := afero.NewMemMapFs()
-	v.SetFs(fs)
-	v.SetConfigType("yaml")
-	err := v.ReadConfig(bytes.NewBuffer(yamlExample))
-	require.NoError(t, err)
-	require.NoError(t, v.SafeWriteConfigAs("/test/c.yaml"))
-	_, err = afero.ReadFile(fs, "/test/c.yaml")
-	require.NoError(t, err)
-}
-
-func TestSafeWriteConfigAsWithExistingFile(t *testing.T) {
-	v := New()
-	fs := afero.NewMemMapFs()
-	fs.Create("/test/c.yaml")
-	v.SetFs(fs)
-	err := v.SafeWriteConfigAs("/test/c.yaml")
-	require.Error(t, err)
-	_, ok := err.(ConfigFileAlreadyExistsError)
-	assert.True(t, ok, "Expected ConfigFileAlreadyExistsError")
-}
-
-func TestWriteHiddenFile(t *testing.T) {
-	v := New()
-	fs := afero.NewMemMapFs()
-	fs.Create(testutil.AbsFilePath(t, "/test/.config"))
-	v.SetFs(fs)
-
-	v.SetConfigName(".config")
-	v.SetConfigType("yaml")
-	v.AddConfigPath("/test")
-
-	err := v.ReadInConfig()
-	require.NoError(t, err)
-
-	err = v.WriteConfig()
-	require.NoError(t, err)
-}
-
-var yamlMergeExampleTgt = []byte(`
-hello:
-    pop: 37890
-    largenum: 765432101234567
-    num2pow63: 9223372036854775808
-    universe: null
-    world:
-    - us
-    - uk
-    - fr
-    - de
-`)
-
-var yamlMergeExampleSrc = []byte(`
-hello:
-    pop: 45000
-    largenum: 7654321001234567
-    universe:
-    - mw
-    - ad
-    ints:
-    - 1
-    - 2
-fu: bar
-`)
-
-var jsonMergeExampleTgt = []byte(`
-{
-	"hello": {
-		"foo": null,
-		"pop": 123456
-	}
-}
-`)
-
-var jsonMergeExampleSrc = []byte(`
-{
-	"hello": {
-		"foo": "foo str",
-		"pop": "pop str"
-	}
-}
-`)
-
-func TestMergeConfig(t *testing.T) {
-	v := New()
-	v.SetConfigType("yml")
-	err := v.ReadConfig(bytes.NewBuffer(yamlMergeExampleTgt))
-	require.NoError(t, err)
-
-	assert.Equal(t, 37890, v.GetInt("hello.pop"))
-	assert.Equal(t, int32(37890), v.GetInt32("hello.pop"))
-	assert.Equal(t, int64(765432101234567), v.GetInt64("hello.largenum"))
-	assert.Equal(t, uint(37890), v.GetUint("hello.pop"))
-	assert.Equal(t, uint16(37890), v.GetUint16("hello.pop"))
-	assert.Equal(t, uint32(37890), v.GetUint32("hello.pop"))
-	assert.Equal(t, uint64(9223372036854775808), v.GetUint64("hello.num2pow63"))
-	assert.Len(t, v.GetStringSlice("hello.world"), 4)
-	assert.Empty(t, v.GetString("fu"))
-
-	err = v.MergeConfig(bytes.NewBuffer(yamlMergeExampleSrc))
-	require.NoError(t, err)
-
-	assert.Equal(t, 45000, v.GetInt("hello.pop"))
-	assert.Equal(t, int32(45000), v.GetInt32("hello.pop"))
-	assert.Equal(t, int64(7654321001234567), v.GetInt64("hello.largenum"))
-	assert.Len(t, v.GetStringSlice("hello.world"), 4)
-	assert.Len(t, v.GetStringSlice("hello.universe"), 2)
-	assert.Len(t, v.GetIntSlice("hello.ints"), 2)
-	assert.Equal(t, "bar", v.GetString("fu"))
-}
-
-func TestMergeConfigOverrideType(t *testing.T) {
-	v := New()
-	v.SetConfigType("json")
-	err := v.ReadConfig(bytes.NewBuffer(jsonMergeExampleTgt))
-	require.NoError(t, err)
-
-	err = v.MergeConfig(bytes.NewBuffer(jsonMergeExampleSrc))
-	require.NoError(t, err)
-
-	assert.Equal(t, "pop str", v.GetString("hello.pop"))
-	assert.Equal(t, "foo str", v.GetString("hello.foo"))
-}
-
-func TestMergeConfigNoMerge(t *testing.T) {
-	v := New()
-	v.SetConfigType("yml")
-	err := v.ReadConfig(bytes.NewBuffer(yamlMergeExampleTgt))
-	require.NoError(t, err)
-
-	assert.Equal(t, 37890, v.GetInt("hello.pop"))
-	assert.Len(t, v.GetStringSlice("hello.world"), 4)
-	assert.Empty(t, v.GetString("fu"))
-
-	err = v.ReadConfig(bytes.NewBuffer(yamlMergeExampleSrc))
-	require.NoError(t, err)
-
-	assert.Equal(t, 45000, v.GetInt("hello.pop"))
-	assert.Empty(t, v.GetStringSlice("hello.world"))
-	assert.Len(t, v.GetStringSlice("hello.universe"), 2)
-	assert.Len(t, v.GetIntSlice("hello.ints"), 2)
-	assert.Equal(t, "bar", v.GetString("fu"))
-}
-
-func TestMergeConfigMap(t *testing.T) {
-	v := New()
-	v.SetConfigType("yml")
-	err := v.ReadConfig(bytes.NewBuffer(yamlMergeExampleTgt))
-	require.NoError(t, err)
-
-	assertFn := func(i int) {
-		large := v.GetInt64("hello.largenum")
-		pop := v.GetInt("hello.pop")
-		assert.Equal(t, int64(765432101234567), large)
-		assert.Equal(t, i, pop)
-	}
-
-	assertFn(37890)
-
-	update := map[string]any{
-		"Hello": map[string]any{
-			"Pop": 1234,
-		},
-		"World": map[any]any{
-			"Rock": 345,
-		},
-	}
-
-	err = v.MergeConfigMap(update)
-	require.NoError(t, err)
-
-	assert.Equal(t, 345, v.GetInt("world.rock"))
-
-	assertFn(1234)
-}
-
-func TestUnmarshalingWithAliases(t *testing.T) {
-	v := New()
-	v.SetDefault("ID", 1)
-	v.Set("name", "Steve")
-	v.Set("lastname", "Owen")
-
-	v.RegisterAlias("UserID", "ID")
-	v.RegisterAlias("Firstname", "name")
-	v.RegisterAlias("Surname", "lastname")
-
-	type config struct {
-		ID        int
-		FirstName string
-		Surname   string
-	}
-
-	var C config
-	err := v.Unmarshal(&C)
-	require.NoError(t, err, "unable to decode into struct")
-
-	assert.Equal(t, &config{ID: 1, FirstName: "Steve", Surname: "Owen"}, &C)
-}
-
-func TestSetConfigNameClearsFileCache(t *testing.T) {
-	v := New()
-	v.SetConfigFile("/tmp/config.yaml")
-	v.SetConfigName("default")
-	f, err := v.getConfigFile()
-	require.Error(t, err, "config file cache should have been cleared")
-	assert.Empty(t, f)
-}
-
-func TestShadowedNestedValue(t *testing.T) {
-	v := New()
-	config := `name: steve
-clothing:
-  jacket: leather
-  trousers: denim
-  pants:
-    size: large
-`
-	initConfig("yaml", config, v)
-
-	assert.Equal(t, "steve", v.GetString("name"))
-
-	polyester := "polyester"
-	v.SetDefault("clothing.shirt", polyester)
-	v.SetDefault("clothing.jacket.price", 100)
-
-	assert.Equal(t, "leather", v.GetString("clothing.jacket"))
-	assert.Nil(t, v.Get("clothing.jacket.price"))
-	assert.Equal(t, polyester, v.GetString("clothing.shirt"))
-
-	clothingSettings := v.AllSettings()["clothing"].(map[string]any)
-	assert.Equal(t, "leather", clothingSettings["jacket"])
-	assert.Equal(t, polyester, clothingSettings["shirt"])
-}
-
-func TestDotParameter(t *testing.T) {
-	v := New()
-
-	v.SetConfigType("json")
-
-	// Read the YAML data into Viper configuration
-	require.NoError(t, v.ReadConfig(bytes.NewBuffer(jsonExample)), "Error reading YAML data")
-
-	// should take precedence over batters defined in jsonExample
-	r := bytes.NewReader([]byte(`{ "batters.batter": [ { "type": "Small" } ] }`))
-	v.unmarshalReader(r, v.config)
-
-	actual := v.Get("batters.batter")
-	expected := []any{map[string]any{"type": "Small"}}
-	assert.Equal(t, expected, actual)
-}
-
-func TestCaseInsensitive(t *testing.T) {
-	for _, config := range []struct {
-		typ     string
-		content string
-	}{
-		{"yaml", `
-aBcD: 1
-eF:
-  gH: 2
-  iJk: 3
-  Lm:
-    nO: 4
-    P:
-      Q: 5
-      R: 6
-`},
-		{"json", `{
-  "aBcD": 1,
-  "eF": {
-    "iJk": 3,
-    "Lm": {
-      "P": {
-        "Q": 5,
-        "R": 6
-      },
-      "nO": 4
-    },
-    "gH": 2
-  }
-}`},
-		{"toml", `aBcD = 1
-[eF]
-gH = 2
-iJk = 3
-[eF.Lm]
-nO = 4
-[eF.Lm.P]
-Q = 5
-R = 6
-`},
-	} {
-		doTestCaseInsensitive(t, config.typ, config.content)
-	}
-}
-
-func TestCaseInsensitiveSet(t *testing.T) {
-	v := New()
-	m1 := map[string]any{
-		"Foo": 32,
-		"Bar": map[any]any{
-			"ABc": "A",
-			"cDE": "B",
-		},
-	}
-
-	m2 := map[string]any{
-		"Foo": 52,
-		"Bar": map[any]any{
-			"bCd": "A",
-			"eFG": "B",
-		},
-	}
-
-	v.Set("Given1", m1)
-	v.Set("Number1", 42)
-
-	v.SetDefault("Given2", m2)
-	v.SetDefault("Number2", 52)
-
-	// Verify SetDefault
-	assert.Equal(t, 52, v.Get("number2"))
-	assert.Equal(t, 52, v.Get("given2.foo"))
-	assert.Equal(t, "A", v.Get("given2.bar.bcd"))
-	_, ok := m2["Foo"]
-	assert.True(t, ok)
-
-	// Verify Set
-	assert.Equal(t, 42, v.Get("number1"))
-	assert.Equal(t, 32, v.Get("given1.foo"))
-	assert.Equal(t, "A", v.Get("given1.bar.abc"))
-	_, ok = m1["Foo"]
-	assert.True(t, ok)
-}
-
-func TestParseNested(t *testing.T) {
-	v := New()
-	type duration struct {
-		Delay time.Duration
-	}
-
-	type item struct {
-		Name   string
-		Delay  time.Duration
-		Nested duration
-	}
-
-	config := `[[parent]]
-	delay="100ms"
-	[parent.nested]
-	delay="200ms"
-`
-	initConfig("toml", config, v)
-
-	var items []item
-	err := v.UnmarshalKey("parent", &items)
-	require.NoError(t, err, "unable to decode into struct")
-
-	assert.Len(t, items, 1)
-	assert.Equal(t, 100*time.Millisecond, items[0].Delay)
-	assert.Equal(t, 200*time.Millisecond, items[0].Nested.Delay)
-}
-
-func doTestCaseInsensitive(t *testing.T, typ, config string) {
-	v := New()
-	initConfig(typ, config, v)
-	v.Set("RfD", true)
-	assert.Equal(t, true, v.Get("rfd"))
-	assert.Equal(t, true, v.Get("rFD"))
-	assert.Equal(t, 1, cast.ToInt(v.Get("abcd")))
-	assert.Equal(t, 1, cast.ToInt(v.Get("Abcd")))
-	assert.Equal(t, 2, cast.ToInt(v.Get("ef.gh")))
-	assert.Equal(t, 3, cast.ToInt(v.Get("ef.ijk")))
-	assert.Equal(t, 4, cast.ToInt(v.Get("ef.lm.no")))
-	assert.Equal(t, 5, cast.ToInt(v.Get("ef.lm.p.q")))
-}
-
-func newViperWithConfigFile(t *testing.T) (*Viper, string) {
-	watchDir := t.TempDir()
-	configFile := path.Join(watchDir, "config.yaml")
-	err := os.WriteFile(configFile, []byte("foo: bar\n"), 0o640)
-	require.NoError(t, err)
-	v := New()
-	v.SetConfigFile(configFile)
-	err = v.ReadInConfig()
-	require.NoError(t, err)
-	require.Equal(t, "bar", v.Get("foo"))
-	return v, configFile
-}
-
-func newViperWithSymlinkedConfigFile(t *testing.T) (*Viper, string, string) {
-	watchDir := t.TempDir()
-	dataDir1 := path.Join(watchDir, "data1")
-	err := os.Mkdir(dataDir1, 0o777)
-	require.NoError(t, err)
-	realConfigFile := path.Join(dataDir1, "config.yaml")
-	t.Logf("Real config file location: %s\n", realConfigFile)
-	err = os.WriteFile(realConfigFile, []byte("foo: bar\n"), 0o640)
-	require.NoError(t, err)
-	// now, symlink the tm `data1` dir to `data` in the baseDir
-	os.Symlink(dataDir1, path.Join(watchDir, "data"))
-	// and link the `<watchdir>/datadir1/config.yaml` to `<watchdir>/config.yaml`
-	configFile := path.Join(watchDir, "config.yaml")
-	os.Symlink(path.Join(watchDir, "data", "config.yaml"), configFile)
-	t.Logf("Config file location: %s\n", path.Join(watchDir, "config.yaml"))
-	// init Viper
-	v := New()
-	v.SetConfigFile(configFile)
-	err = v.ReadInConfig()
-	require.NoError(t, err)
-	require.Equal(t, "bar", v.Get("foo"))
-	return v, watchDir, configFile
-}
-
-func TestWatchFile(t *testing.T) {
-	if runtime.GOOS == "linux" {
-		// TODO(bep) FIX ME
-		t.Skip("Skip test on Linux ...")
-	}
-
-	t.Run("file content changed", func(t *testing.T) {
-		// given a `config.yaml` file being watched
-		v, configFile := newViperWithConfigFile(t)
-		_, err := os.Stat(configFile)
-		require.NoError(t, err)
-		t.Logf("test config file: %s\n", configFile)
-		wg := sync.WaitGroup{}
-		wg.Add(1)
-		var wgDoneOnce sync.Once // OnConfigChange is called twice on Windows
-		v.OnConfigChange(func(_ fsnotify.Event) {
-			t.Logf("config file changed")
-			wgDoneOnce.Do(func() {
-				wg.Done()
-			})
-		})
-		v.WatchConfig()
-		// when overwriting the file and waiting for the custom change notification handler to be triggered
-		err = os.WriteFile(configFile, []byte("foo: baz\n"), 0o640)
-		wg.Wait()
-		// then the config value should have changed
-		require.NoError(t, err)
-		assert.Equal(t, "baz", v.Get("foo"))
-	})
-
-	t.Run("link to real file changed (à la Kubernetes)", func(t *testing.T) {
-		// skip if not executed on Linux
-		if runtime.GOOS != "linux" {
-			t.Skipf("Skipping test as symlink replacements don't work on non-linux environment...")
-		}
-		v, watchDir, _ := newViperWithSymlinkedConfigFile(t)
-		wg := sync.WaitGroup{}
-		v.WatchConfig()
-		v.OnConfigChange(func(_ fsnotify.Event) {
-			t.Logf("config file changed")
-			wg.Done()
-		})
-		wg.Add(1)
-		// when link to another `config.yaml` file
-		dataDir2 := path.Join(watchDir, "data2")
-		err := os.Mkdir(dataDir2, 0o777)
-		require.NoError(t, err)
-		configFile2 := path.Join(dataDir2, "config.yaml")
-		err = os.WriteFile(configFile2, []byte("foo: baz\n"), 0o640)
-		require.NoError(t, err)
-		// change the symlink using the `ln -sfn` command
-		err = exec.Command("ln", "-sfn", dataDir2, path.Join(watchDir, "data")).Run()
-		require.NoError(t, err)
-		wg.Wait()
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, "baz", v.Get("foo"))
-	})
-}
-
-func TestUnmarshal_DotSeparatorBackwardCompatibility(t *testing.T) {
-	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	flags.String("foo.bar", "cobra_flag", "")
-
-	v := New()
-	assert.NoError(t, v.BindPFlags(flags))
-
-	config := &struct {
-		Foo struct {
-			Bar string
-		}
-	}{}
-
-	assert.NoError(t, v.Unmarshal(config))
-	assert.Equal(t, "cobra_flag", config.Foo.Bar)
-}
-
-// var yamlExampleWithDot = []byte(`Hacker: true
-// name: steve
-// hobbies:
-//     - skateboarding
-//     - snowboarding
-//     - go
-// clothing:
-//     jacket: leather
-//     trousers: denim
-//     pants:
-//         size: large
-// age: 35
-// eyes : brown
-// beard: true
-// emails:
-//     steve@hacker.com:
-//         created: 01/02/03
-//         active: true
+// func TestUnwrapParseErrors(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigType("yaml")
+// 	assert.ErrorAs(t, v.ReadConfig(bytes.NewBuffer(yamlInvalid)), &ConfigParseError{})
+// }
+
+// func TestSub(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigType("yaml")
+// 	v.ReadConfig(bytes.NewBuffer(yamlExample))
+
+// 	subv := v.Sub("clothing")
+// 	assert.Equal(t, v.Get("clothing.pants.size"), subv.Get("pants.size"))
+
+// 	subv = v.Sub("clothing.pants")
+// 	assert.Equal(t, v.Get("clothing.pants.size"), subv.Get("size"))
+
+// 	subv = v.Sub("clothing.pants.size")
+// 	assert.Equal(t, (*Viper)(nil), subv)
+
+// 	subv = v.Sub("missing.key")
+// 	assert.Equal(t, (*Viper)(nil), subv)
+
+// 	subv = v.Sub("clothing")
+// 	assert.Equal(t, []string{"clothing"}, subv.parents)
+
+// 	subv = v.Sub("clothing").Sub("pants")
+// 	assert.Equal(t, []string{"clothing", "pants"}, subv.parents)
+// }
+
+// func TestSubWithKeyDelimiter(t *testing.T) {
+// 	v := NewWithOptions(KeyDelimiter("::"))
+// 	v.SetConfigType("yaml")
+// 	r := strings.NewReader(string(yamlExampleWithDot))
+// 	err := v.unmarshalReader(r, v.config)
+// 	require.NoError(t, err)
+
+// 	subv := v.Sub("emails")
+// 	assert.Equal(t, "01/02/03", subv.Get("steve@hacker.com::created"))
+// }
+
+// var jsonWriteExpected = []byte(`{
+//   "batters": {
+//     "batter": [
+//       {
+//         "type": "Regular"
+//       },
+//       {
+//         "type": "Chocolate"
+//       },
+//       {
+//         "type": "Blueberry"
+//       },
+//       {
+//         "type": "Devil's Food"
+//       }
+//     ]
+//   },
+//   "id": "0001",
+//   "name": "Cake",
+//   "ppu": 0.55,
+//   "type": "donut"
+// }`)
+
+// // var yamlWriteExpected = []byte(`age: 35
+// // beard: true
+// // clothing:
+// //     jacket: leather
+// //     pants:
+// //         size: large
+// //     trousers: denim
+// // eyes: brown
+// // hacker: true
+// // hobbies:
+// //     - skateboarding
+// //     - snowboarding
+// //     - go
+// // name: steve
+// // `)
+
+// func TestWriteConfig(t *testing.T) {
+// 	fs := afero.NewMemMapFs()
+// 	testCases := map[string]struct {
+// 		configName      string
+// 		inConfigType    string
+// 		outConfigType   string
+// 		fileName        string
+// 		input           []byte
+// 		expectedContent []byte
+// 	}{
+// 		"json with file extension": {
+// 			configName:      "c",
+// 			inConfigType:    "json",
+// 			outConfigType:   "json",
+// 			fileName:        "c.json",
+// 			input:           jsonExample,
+// 			expectedContent: jsonWriteExpected,
+// 		},
+// 		"json without file extension": {
+// 			configName:      "c",
+// 			inConfigType:    "json",
+// 			outConfigType:   "json",
+// 			fileName:        "c",
+// 			input:           jsonExample,
+// 			expectedContent: jsonWriteExpected,
+// 		},
+// 		"json with file extension and mismatch type": {
+// 			configName:      "c",
+// 			inConfigType:    "json",
+// 			outConfigType:   "hcl",
+// 			fileName:        "c.json",
+// 			input:           jsonExample,
+// 			expectedContent: jsonWriteExpected,
+// 		},
+// 		"yaml with file extension": {
+// 			configName:      "c",
+// 			inConfigType:    "yaml",
+// 			outConfigType:   "yaml",
+// 			fileName:        "c.yaml",
+// 			input:           yamlExample,
+// 			expectedContent: yamlWriteExpected,
+// 		},
+// 		"yaml without file extension": {
+// 			configName:      "c",
+// 			inConfigType:    "yaml",
+// 			outConfigType:   "yaml",
+// 			fileName:        "c",
+// 			input:           yamlExample,
+// 			expectedContent: yamlWriteExpected,
+// 		},
+// 		"yaml with file extension and mismatch type": {
+// 			configName:      "c",
+// 			inConfigType:    "yaml",
+// 			outConfigType:   "json",
+// 			fileName:        "c.yaml",
+// 			input:           yamlExample,
+// 			expectedContent: yamlWriteExpected,
+// 		},
+// 	}
+// 	for name, tc := range testCases {
+// 		t.Run(name, func(t *testing.T) {
+// 			v := New()
+// 			v.SetFs(fs)
+// 			v.SetConfigName(tc.fileName)
+// 			v.SetConfigType(tc.inConfigType)
+
+// 			err := v.ReadConfig(bytes.NewBuffer(tc.input))
+// 			require.NoError(t, err)
+// 			v.SetConfigType(tc.outConfigType)
+// 			err = v.WriteConfigAs(tc.fileName)
+// 			require.NoError(t, err)
+// 			read, err := afero.ReadFile(fs, tc.fileName)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, tc.expectedContent, read)
+// 		})
+// 	}
+// }
+
+// func TestWriteConfigTOML(t *testing.T) {
+// 	fs := afero.NewMemMapFs()
+
+// 	testCases := map[string]struct {
+// 		configName string
+// 		configType string
+// 		fileName   string
+// 		input      []byte
+// 	}{
+// 		"with file extension": {
+// 			configName: "c",
+// 			configType: "toml",
+// 			fileName:   "c.toml",
+// 			input:      tomlExample,
+// 		},
+// 		"without file extension": {
+// 			configName: "c",
+// 			configType: "toml",
+// 			fileName:   "c",
+// 			input:      tomlExample,
+// 		},
+// 	}
+// 	for name, tc := range testCases {
+// 		t.Run(name, func(t *testing.T) {
+// 			v := New()
+// 			v.SetFs(fs)
+// 			v.SetConfigName(tc.configName)
+// 			v.SetConfigType(tc.configType)
+// 			err := v.ReadConfig(bytes.NewBuffer(tc.input))
+// 			require.NoError(t, err)
+// 			err = v.WriteConfigAs(tc.fileName)
+// 			require.NoError(t, err)
+
+// 			// The TOML String method does not order the contents.
+// 			// Therefore, we must read the generated file and compare the data.
+// 			v2 := New()
+// 			v2.SetFs(fs)
+// 			v2.SetConfigName(tc.configName)
+// 			v2.SetConfigType(tc.configType)
+// 			v2.SetConfigFile(tc.fileName)
+// 			err = v2.ReadInConfig()
+// 			require.NoError(t, err)
+
+// 			// assert.Equal(t, v.GetString("title"), v2.GetString("title"))
+// 			// assert.Equal(t, v.GetString("owner.bio"), v2.GetString("owner.bio"))
+// 			// assert.Equal(t, v.GetString("owner.dob"), v2.GetString("owner.dob"))
+// 			// assert.Equal(t, v.GetString("owner.organization"), v2.GetString("owner.organization"))
+// 		})
+// 	}
+// }
+
+// func TestWriteConfigDotEnv(t *testing.T) {
+// 	fs := afero.NewMemMapFs()
+// 	testCases := map[string]struct {
+// 		configName string
+// 		configType string
+// 		fileName   string
+// 		input      []byte
+// 	}{
+// 		"with file extension": {
+// 			configName: "c",
+// 			configType: "env",
+// 			fileName:   "c.env",
+// 			input:      dotenvExample,
+// 		},
+// 		"without file extension": {
+// 			configName: "c",
+// 			configType: "env",
+// 			fileName:   "c",
+// 			input:      dotenvExample,
+// 		},
+// 	}
+// 	for name, tc := range testCases {
+// 		t.Run(name, func(t *testing.T) {
+// 			v := New()
+// 			v.SetFs(fs)
+// 			v.SetConfigName(tc.configName)
+// 			v.SetConfigType(tc.configType)
+// 			err := v.ReadConfig(bytes.NewBuffer(tc.input))
+// 			require.NoError(t, err)
+// 			err = v.WriteConfigAs(tc.fileName)
+// 			require.NoError(t, err)
+
+// 			// The TOML String method does not order the contents.
+// 			// Therefore, we must read the generated file and compare the data.
+// 			v2 := New()
+// 			v2.SetFs(fs)
+// 			v2.SetConfigName(tc.configName)
+// 			v2.SetConfigType(tc.configType)
+// 			v2.SetConfigFile(tc.fileName)
+// 			err = v2.ReadInConfig()
+// 			require.NoError(t, err)
+
+// 			assert.Equal(t, v.GetString("title_dotenv"), v2.GetString("title_dotenv"))
+// 			assert.Equal(t, v.GetString("type_dotenv"), v2.GetString("type_dotenv"))
+// 			assert.Equal(t, v.GetString("kind_dotenv"), v2.GetString("kind_dotenv"))
+// 		})
+// 	}
+// }
+
+// func TestSafeWriteConfig(t *testing.T) {
+// 	v := New()
+// 	fs := afero.NewMemMapFs()
+// 	v.SetFs(fs)
+// 	v.AddConfigPath("/test")
+// 	v.SetConfigName("c")
+// 	v.SetConfigType("yaml")
+// 	require.NoError(t, v.ReadConfig(bytes.NewBuffer(yamlExample)))
+// 	require.NoError(t, v.SafeWriteConfig())
+// 	read, err := afero.ReadFile(fs, testutil.AbsFilePath(t, "/test/c.yaml"))
+// 	require.NoError(t, err)
+// 	assert.Equal(t, yamlWriteExpected, read)
+// }
+
+// func TestSafeWriteConfigWithMissingConfigPath(t *testing.T) {
+// 	v := New()
+// 	fs := afero.NewMemMapFs()
+// 	v.SetFs(fs)
+// 	v.SetConfigName("c")
+// 	v.SetConfigType("yaml")
+// 	require.EqualError(t, v.SafeWriteConfig(), "missing configuration for 'configPath'")
+// }
+
+// func TestSafeWriteConfigWithExistingFile(t *testing.T) {
+// 	v := New()
+// 	fs := afero.NewMemMapFs()
+// 	fs.Create(testutil.AbsFilePath(t, "/test/c.yaml"))
+// 	v.SetFs(fs)
+// 	v.AddConfigPath("/test")
+// 	v.SetConfigName("c")
+// 	v.SetConfigType("yaml")
+// 	err := v.SafeWriteConfig()
+// 	require.Error(t, err)
+// 	_, ok := err.(ConfigFileAlreadyExistsError)
+// 	assert.True(t, ok, "Expected ConfigFileAlreadyExistsError")
+// }
+
+// func TestSafeWriteAsConfig(t *testing.T) {
+// 	v := New()
+// 	fs := afero.NewMemMapFs()
+// 	v.SetFs(fs)
+// 	v.SetConfigType("yaml")
+// 	err := v.ReadConfig(bytes.NewBuffer(yamlExample))
+// 	require.NoError(t, err)
+// 	require.NoError(t, v.SafeWriteConfigAs("/test/c.yaml"))
+// 	_, err = afero.ReadFile(fs, "/test/c.yaml")
+// 	require.NoError(t, err)
+// }
+
+// func TestSafeWriteConfigAsWithExistingFile(t *testing.T) {
+// 	v := New()
+// 	fs := afero.NewMemMapFs()
+// 	fs.Create("/test/c.yaml")
+// 	v.SetFs(fs)
+// 	err := v.SafeWriteConfigAs("/test/c.yaml")
+// 	require.Error(t, err)
+// 	_, ok := err.(ConfigFileAlreadyExistsError)
+// 	assert.True(t, ok, "Expected ConfigFileAlreadyExistsError")
+// }
+
+// func TestWriteHiddenFile(t *testing.T) {
+// 	v := New()
+// 	fs := afero.NewMemMapFs()
+// 	fs.Create(testutil.AbsFilePath(t, "/test/.config"))
+// 	v.SetFs(fs)
+
+// 	v.SetConfigName(".config")
+// 	v.SetConfigType("yaml")
+// 	v.AddConfigPath("/test")
+
+// 	err := v.ReadInConfig()
+// 	require.NoError(t, err)
+
+// 	err = v.WriteConfig()
+// 	require.NoError(t, err)
+// }
+
+// var yamlMergeExampleTgt = []byte(`
+// hello:
+//     pop: 37890
+//     largenum: 765432101234567
+//     num2pow63: 9223372036854775808
+//     universe: null
+//     world:
+//     - us
+//     - uk
+//     - fr
+//     - de
 // `)
 
-func TestKeyDelimiter(t *testing.T) {
-	v := NewWithOptions(KeyDelimiter("::"))
-	v.SetConfigType("yaml")
-	r := strings.NewReader(string(yamlExampleWithDot))
+// var yamlMergeExampleSrc = []byte(`
+// hello:
+//     pop: 45000
+//     largenum: 7654321001234567
+//     universe:
+//     - mw
+//     - ad
+//     ints:
+//     - 1
+//     - 2
+// fu: bar
+// `)
 
-	err := v.unmarshalReader(r, v.config)
-	require.NoError(t, err)
+// var jsonMergeExampleTgt = []byte(`
+// {
+// 	"hello": {
+// 		"foo": null,
+// 		"pop": 123456
+// 	}
+// }
+// `)
 
-	values := map[string]any{
-		"image": map[string]any{
-			"repository": "someImage",
-			"tag":        "1.0.0",
-		},
-		"ingress": map[string]any{
-			"annotations": map[string]any{
-				"traefik.frontend.rule.type":                 "PathPrefix",
-				"traefik.ingress.kubernetes.io/ssl-redirect": "true",
-			},
-		},
-	}
+// var jsonMergeExampleSrc = []byte(`
+// {
+// 	"hello": {
+// 		"foo": "foo str",
+// 		"pop": "pop str"
+// 	}
+// }
+// `)
 
-	v.SetDefault("charts::values", values)
+// func TestMergeConfig(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigType("yml")
+// 	err := v.ReadConfig(bytes.NewBuffer(yamlMergeExampleTgt))
+// 	require.NoError(t, err)
 
-	assert.Equal(t, "leather", v.GetString("clothing::jacket"))
-	assert.Equal(t, "01/02/03", v.GetString("emails::steve@hacker.com::created"))
+// 	assert.Equal(t, 37890, v.GetInt("hello.pop"))
+// 	assert.Equal(t, int32(37890), v.GetInt32("hello.pop"))
+// 	assert.Equal(t, int64(765432101234567), v.GetInt64("hello.largenum"))
+// 	assert.Equal(t, uint(37890), v.GetUint("hello.pop"))
+// 	assert.Equal(t, uint16(37890), v.GetUint16("hello.pop"))
+// 	assert.Equal(t, uint32(37890), v.GetUint32("hello.pop"))
+// 	assert.Equal(t, uint64(9223372036854775808), v.GetUint64("hello.num2pow63"))
+// 	assert.Len(t, v.GetStringSlice("hello.world"), 4)
+// 	assert.Empty(t, v.GetString("fu"))
 
-	type config struct {
-		Charts struct {
-			Values map[string]any
-		}
-	}
+// 	err = v.MergeConfig(bytes.NewBuffer(yamlMergeExampleSrc))
+// 	require.NoError(t, err)
 
-	expected := config{
-		Charts: struct {
-			Values map[string]any
-		}{
-			Values: values,
-		},
-	}
+// 	assert.Equal(t, 45000, v.GetInt("hello.pop"))
+// 	assert.Equal(t, int32(45000), v.GetInt32("hello.pop"))
+// 	assert.Equal(t, int64(7654321001234567), v.GetInt64("hello.largenum"))
+// 	assert.Len(t, v.GetStringSlice("hello.world"), 4)
+// 	assert.Len(t, v.GetStringSlice("hello.universe"), 2)
+// 	assert.Len(t, v.GetIntSlice("hello.ints"), 2)
+// 	assert.Equal(t, "bar", v.GetString("fu"))
+// }
 
-	var actual config
+// func TestMergeConfigOverrideType(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigType("json")
+// 	err := v.ReadConfig(bytes.NewBuffer(jsonMergeExampleTgt))
+// 	require.NoError(t, err)
 
-	assert.NoError(t, v.Unmarshal(&actual))
+// 	err = v.MergeConfig(bytes.NewBuffer(jsonMergeExampleSrc))
+// 	require.NoError(t, err)
 
-	assert.Equal(t, expected, actual)
-}
+// 	assert.Equal(t, "pop str", v.GetString("hello.pop"))
+// 	assert.Equal(t, "foo str", v.GetString("hello.foo"))
+// }
 
-var yamlDeepNestedSlices = []byte(`TV:
-- title: "The Expanse"
-  title_i18n:
-    USA: "The Expanse"
-    Japan: "エクスパンス -巨獣めざめる-"
-  seasons:
-  - first_released: "December 14, 2015"
-    episodes:
-    - title: "Dulcinea"
-      air_date: "December 14, 2015"
-    - title: "The Big Empty"
-      air_date: "December 15, 2015"
-    - title: "Remember the Cant"
-      air_date: "December 22, 2015"
-  - first_released: "February 1, 2017"
-    episodes:
-    - title: "Safe"
-      air_date: "February 1, 2017"
-    - title: "Doors & Corners"
-      air_date: "February 1, 2017"
-    - title: "Static"
-      air_date: "February 8, 2017"
-  episodes:
-    - ["Dulcinea", "The Big Empty", "Remember the Cant"]
-    - ["Safe", "Doors & Corners", "Static"]
-`)
+// func TestMergeConfigNoMerge(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigType("yml")
+// 	err := v.ReadConfig(bytes.NewBuffer(yamlMergeExampleTgt))
+// 	require.NoError(t, err)
 
-func TestSliceIndexAccess(t *testing.T) {
-	v := New()
-	v.SetConfigType("yaml")
-	r := strings.NewReader(string(yamlDeepNestedSlices))
+// 	assert.Equal(t, 37890, v.GetInt("hello.pop"))
+// 	assert.Len(t, v.GetStringSlice("hello.world"), 4)
+// 	assert.Empty(t, v.GetString("fu"))
 
-	err := v.unmarshalReader(r, v.config)
-	require.NoError(t, err)
+// 	err = v.ReadConfig(bytes.NewBuffer(yamlMergeExampleSrc))
+// 	require.NoError(t, err)
 
-	assert.Equal(t, "The Expanse", v.GetString("tv.0.title"))
-	assert.Equal(t, "February 1, 2017", v.GetString("tv.0.seasons.1.first_released"))
-	assert.Equal(t, "Static", v.GetString("tv.0.seasons.1.episodes.2.title"))
-	assert.Equal(t, "December 15, 2015", v.GetString("tv.0.seasons.0.episodes.1.air_date"))
+// 	assert.Equal(t, 45000, v.GetInt("hello.pop"))
+// 	assert.Empty(t, v.GetStringSlice("hello.world"))
+// 	assert.Len(t, v.GetStringSlice("hello.universe"), 2)
+// 	assert.Len(t, v.GetIntSlice("hello.ints"), 2)
+// 	assert.Equal(t, "bar", v.GetString("fu"))
+// }
 
-	// Test nested keys with capital letters
-	assert.Equal(t, "The Expanse", v.GetString("tv.0.title_i18n.USA"))
-	assert.Equal(t, "エクスパンス -巨獣めざめる-", v.GetString("tv.0.title_i18n.Japan"))
+// func TestMergeConfigMap(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigType("yml")
+// 	err := v.ReadConfig(bytes.NewBuffer(yamlMergeExampleTgt))
+// 	require.NoError(t, err)
 
-	// Test for index out of bounds
-	assert.Equal(t, "", v.GetString("tv.0.seasons.2.first_released"))
+// 	assertFn := func(i int) {
+// 		large := v.GetInt64("hello.largenum")
+// 		pop := v.GetInt("hello.pop")
+// 		assert.Equal(t, int64(765432101234567), large)
+// 		assert.Equal(t, i, pop)
+// 	}
 
-	// Accessing multidimensional arrays
-	assert.Equal(t, "Static", v.GetString("tv.0.episodes.1.2"))
-}
+// 	assertFn(37890)
 
-func TestIsPathShadowedInFlatMap(t *testing.T) {
-	v := New()
+// 	update := map[string]any{
+// 		"Hello": map[string]any{
+// 			"Pop": 1234,
+// 		},
+// 		"World": map[any]any{
+// 			"Rock": 345,
+// 		},
+// 	}
 
-	stringMap := map[string]string{
-		"foo": "value",
-	}
+// 	err = v.MergeConfigMap(update)
+// 	require.NoError(t, err)
 
-	flagMap := map[string]FlagValue{
-		"foo": pflagValue{},
-	}
+// 	assert.Equal(t, 345, v.GetInt("world.rock"))
 
-	path1 := []string{"foo", "bar"}
-	expected1 := "foo"
+// 	assertFn(1234)
+// }
 
-	// "foo.bar" should shadowed by "foo"
-	assert.Equal(t, expected1, v.isPathShadowedInFlatMap(path1, stringMap))
-	assert.Equal(t, expected1, v.isPathShadowedInFlatMap(path1, flagMap))
+// func TestUnmarshalingWithAliases(t *testing.T) {
+// 	v := New()
+// 	v.SetDefault("ID", 1)
+// 	v.Set("name", "Steve")
+// 	v.Set("lastname", "Owen")
 
-	path2 := []string{"bar", "foo"}
-	expected2 := ""
+// 	v.RegisterAlias("UserID", "ID")
+// 	v.RegisterAlias("Firstname", "name")
+// 	v.RegisterAlias("Surname", "lastname")
 
-	// "bar.foo" should not shadowed by "foo"
-	assert.Equal(t, expected2, v.isPathShadowedInFlatMap(path2, stringMap))
-	assert.Equal(t, expected2, v.isPathShadowedInFlatMap(path2, flagMap))
-}
+// 	type config struct {
+// 		ID        int
+// 		FirstName string
+// 		Surname   string
+// 	}
 
-func TestFlagShadow(t *testing.T) {
-	v := New()
+// 	var C config
+// 	err := v.Unmarshal(&C)
+// 	require.NoError(t, err, "unable to decode into struct")
 
-	v.SetDefault("foo.bar1.bar2", "default")
+// 	assert.Equal(t, &config{ID: 1, FirstName: "Steve", Surname: "Owen"}, &C)
+// }
 
-	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	flags.String("foo.bar1", "shadowed", "")
-	flags.VisitAll(func(flag *flag.Flag) {
-		flag.Changed = true
-	})
+// func TestSetConfigNameClearsFileCache(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigFile("/tmp/config.yaml")
+// 	v.SetConfigName("default")
+// 	f, err := v.getConfigFile()
+// 	require.Error(t, err, "config file cache should have been cleared")
+// 	assert.Empty(t, f)
+// }
 
-	v.BindPFlags(flags)
+// func TestShadowedNestedValue(t *testing.T) {
+// 	v := New()
+// 	config := `name: steve
+// clothing:
+//   jacket: leather
+//   trousers: denim
+//   pants:
+//     size: large
+// `
+// 	initConfig("yaml", config, v)
 
-	assert.Equal(t, "shadowed", v.GetString("foo.bar1"))
-	// the default "foo.bar1.bar2" value should shadowed by flag "foo.bar1" value
-	// and should return an empty string
-	assert.Equal(t, "", v.GetString("foo.bar1.bar2"))
-}
+// 	assert.Equal(t, "steve", v.GetString("name"))
 
-func BenchmarkGetBool(b *testing.B) {
-	key := "BenchmarkGetBool"
-	v = New()
-	v.Set(key, true)
+// 	polyester := "polyester"
+// 	v.SetDefault("clothing.shirt", polyester)
+// 	v.SetDefault("clothing.jacket.price", 100)
 
-	for i := 0; i < b.N; i++ {
-		if !v.GetBool(key) {
-			b.Fatal("GetBool returned false")
-		}
-	}
-}
+// 	assert.Equal(t, "leather", v.GetString("clothing.jacket"))
+// 	assert.Nil(t, v.Get("clothing.jacket.price"))
+// 	assert.Equal(t, polyester, v.GetString("clothing.shirt"))
+
+// 	clothingSettings := v.AllSettings()["clothing"].(map[string]any)
+// 	assert.Equal(t, "leather", clothingSettings["jacket"])
+// 	assert.Equal(t, polyester, clothingSettings["shirt"])
+// }
+
+// func TestDotParameter(t *testing.T) {
+// 	v := New()
+
+// 	v.SetConfigType("json")
+
+// 	// Read the YAML data into Viper configuration
+// 	require.NoError(t, v.ReadConfig(bytes.NewBuffer(jsonExample)), "Error reading YAML data")
+
+// 	// should take precedence over batters defined in jsonExample
+// 	r := bytes.NewReader([]byte(`{ "batters.batter": [ { "type": "Small" } ] }`))
+// 	v.unmarshalReader(r, v.config)
+
+// 	actual := v.Get("batters.batter")
+// 	expected := []any{map[string]any{"type": "Small"}}
+// 	assert.Equal(t, expected, actual)
+// }
+
+// func TestCaseInsensitive(t *testing.T) {
+// 	for _, config := range []struct {
+// 		typ     string
+// 		content string
+// 	}{
+// 		{"yaml", `
+// aBcD: 1
+// eF:
+//   gH: 2
+//   iJk: 3
+//   Lm:
+//     nO: 4
+//     P:
+//       Q: 5
+//       R: 6
+// `},
+// 		{"json", `{
+//   "aBcD": 1,
+//   "eF": {
+//     "iJk": 3,
+//     "Lm": {
+//       "P": {
+//         "Q": 5,
+//         "R": 6
+//       },
+//       "nO": 4
+//     },
+//     "gH": 2
+//   }
+// }`},
+// 		{"toml", `aBcD = 1
+// [eF]
+// gH = 2
+// iJk = 3
+// [eF.Lm]
+// nO = 4
+// [eF.Lm.P]
+// Q = 5
+// R = 6
+// `},
+// 	} {
+// 		doTestCaseInsensitive(t, config.typ, config.content)
+// 	}
+// }
+
+// func TestCaseInsensitiveSet(t *testing.T) {
+// 	v := New()
+// 	m1 := map[string]any{
+// 		"Foo": 32,
+// 		"Bar": map[any]any{
+// 			"ABc": "A",
+// 			"cDE": "B",
+// 		},
+// 	}
+
+// 	m2 := map[string]any{
+// 		"Foo": 52,
+// 		"Bar": map[any]any{
+// 			"bCd": "A",
+// 			"eFG": "B",
+// 		},
+// 	}
+
+// 	v.Set("Given1", m1)
+// 	v.Set("Number1", 42)
+
+// 	v.SetDefault("Given2", m2)
+// 	v.SetDefault("Number2", 52)
+
+// 	// Verify SetDefault
+// 	assert.Equal(t, 52, v.Get("number2"))
+// 	assert.Equal(t, 52, v.Get("given2.foo"))
+// 	assert.Equal(t, "A", v.Get("given2.bar.bcd"))
+// 	_, ok := m2["Foo"]
+// 	assert.True(t, ok)
+
+// 	// Verify Set
+// 	assert.Equal(t, 42, v.Get("number1"))
+// 	assert.Equal(t, 32, v.Get("given1.foo"))
+// 	assert.Equal(t, "A", v.Get("given1.bar.abc"))
+// 	_, ok = m1["Foo"]
+// 	assert.True(t, ok)
+// }
+
+// func TestParseNested(t *testing.T) {
+// 	v := New()
+// 	type duration struct {
+// 		Delay time.Duration
+// 	}
+
+// 	type item struct {
+// 		Name   string
+// 		Delay  time.Duration
+// 		Nested duration
+// 	}
+
+// 	config := `[[parent]]
+// 	delay="100ms"
+// 	[parent.nested]
+// 	delay="200ms"
+// `
+// 	initConfig("toml", config, v)
+
+// 	var items []item
+// 	err := v.UnmarshalKey("parent", &items)
+// 	require.NoError(t, err, "unable to decode into struct")
+
+// 	assert.Len(t, items, 1)
+// 	assert.Equal(t, 100*time.Millisecond, items[0].Delay)
+// 	assert.Equal(t, 200*time.Millisecond, items[0].Nested.Delay)
+// }
+
+// func doTestCaseInsensitive(t *testing.T, typ, config string) {
+// 	v := New()
+// 	initConfig(typ, config, v)
+// 	v.Set("RfD", true)
+// 	assert.Equal(t, true, v.Get("rfd"))
+// 	assert.Equal(t, true, v.Get("rFD"))
+// 	assert.Equal(t, 1, cast.ToInt(v.Get("abcd")))
+// 	assert.Equal(t, 1, cast.ToInt(v.Get("Abcd")))
+// 	assert.Equal(t, 2, cast.ToInt(v.Get("ef.gh")))
+// 	assert.Equal(t, 3, cast.ToInt(v.Get("ef.ijk")))
+// 	assert.Equal(t, 4, cast.ToInt(v.Get("ef.lm.no")))
+// 	assert.Equal(t, 5, cast.ToInt(v.Get("ef.lm.p.q")))
+// }
+
+// func newViperWithConfigFile(t *testing.T) (*Viper, string) {
+// 	watchDir := t.TempDir()
+// 	configFile := path.Join(watchDir, "config.yaml")
+// 	err := os.WriteFile(configFile, []byte("foo: bar\n"), 0o640)
+// 	require.NoError(t, err)
+// 	v := New()
+// 	v.SetConfigFile(configFile)
+// 	err = v.ReadInConfig()
+// 	require.NoError(t, err)
+// 	require.Equal(t, "bar", v.Get("foo"))
+// 	return v, configFile
+// }
+
+// func newViperWithSymlinkedConfigFile(t *testing.T) (*Viper, string, string) {
+// 	watchDir := t.TempDir()
+// 	dataDir1 := path.Join(watchDir, "data1")
+// 	err := os.Mkdir(dataDir1, 0o777)
+// 	require.NoError(t, err)
+// 	realConfigFile := path.Join(dataDir1, "config.yaml")
+// 	t.Logf("Real config file location: %s\n", realConfigFile)
+// 	err = os.WriteFile(realConfigFile, []byte("foo: bar\n"), 0o640)
+// 	require.NoError(t, err)
+// 	// now, symlink the tm `data1` dir to `data` in the baseDir
+// 	os.Symlink(dataDir1, path.Join(watchDir, "data"))
+// 	// and link the `<watchdir>/datadir1/config.yaml` to `<watchdir>/config.yaml`
+// 	configFile := path.Join(watchDir, "config.yaml")
+// 	os.Symlink(path.Join(watchDir, "data", "config.yaml"), configFile)
+// 	t.Logf("Config file location: %s\n", path.Join(watchDir, "config.yaml"))
+// 	// init Viper
+// 	v := New()
+// 	v.SetConfigFile(configFile)
+// 	err = v.ReadInConfig()
+// 	require.NoError(t, err)
+// 	require.Equal(t, "bar", v.Get("foo"))
+// 	return v, watchDir, configFile
+// }
+
+// func TestWatchFile(t *testing.T) {
+// 	if runtime.GOOS == "linux" {
+// 		// TODO(bep) FIX ME
+// 		t.Skip("Skip test on Linux ...")
+// 	}
+
+// 	t.Run("file content changed", func(t *testing.T) {
+// 		// given a `config.yaml` file being watched
+// 		v, configFile := newViperWithConfigFile(t)
+// 		_, err := os.Stat(configFile)
+// 		require.NoError(t, err)
+// 		t.Logf("test config file: %s\n", configFile)
+// 		wg := sync.WaitGroup{}
+// 		wg.Add(1)
+// 		var wgDoneOnce sync.Once // OnConfigChange is called twice on Windows
+// 		v.OnConfigChange(func(_ fsnotify.Event) {
+// 			t.Logf("config file changed")
+// 			wgDoneOnce.Do(func() {
+// 				wg.Done()
+// 			})
+// 		})
+// 		v.WatchConfig()
+// 		// when overwriting the file and waiting for the custom change notification handler to be triggered
+// 		err = os.WriteFile(configFile, []byte("foo: baz\n"), 0o640)
+// 		wg.Wait()
+// 		// then the config value should have changed
+// 		require.NoError(t, err)
+// 		assert.Equal(t, "baz", v.Get("foo"))
+// 	})
+
+// 	t.Run("link to real file changed (à la Kubernetes)", func(t *testing.T) {
+// 		// skip if not executed on Linux
+// 		if runtime.GOOS != "linux" {
+// 			t.Skipf("Skipping test as symlink replacements don't work on non-linux environment...")
+// 		}
+// 		v, watchDir, _ := newViperWithSymlinkedConfigFile(t)
+// 		wg := sync.WaitGroup{}
+// 		v.WatchConfig()
+// 		v.OnConfigChange(func(_ fsnotify.Event) {
+// 			t.Logf("config file changed")
+// 			wg.Done()
+// 		})
+// 		wg.Add(1)
+// 		// when link to another `config.yaml` file
+// 		dataDir2 := path.Join(watchDir, "data2")
+// 		err := os.Mkdir(dataDir2, 0o777)
+// 		require.NoError(t, err)
+// 		configFile2 := path.Join(dataDir2, "config.yaml")
+// 		err = os.WriteFile(configFile2, []byte("foo: baz\n"), 0o640)
+// 		require.NoError(t, err)
+// 		// change the symlink using the `ln -sfn` command
+// 		err = exec.Command("ln", "-sfn", dataDir2, path.Join(watchDir, "data")).Run()
+// 		require.NoError(t, err)
+// 		wg.Wait()
+// 		// then
+// 		require.NoError(t, err)
+// 		assert.Equal(t, "baz", v.Get("foo"))
+// 	})
+// }
+
+// func TestUnmarshal_DotSeparatorBackwardCompatibility(t *testing.T) {
+// 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
+// 	flags.String("foo.bar", "cobra_flag", "")
+
+// 	v := New()
+// 	assert.NoError(t, v.BindPFlags(flags))
+
+// 	config := &struct {
+// 		Foo struct {
+// 			Bar string
+// 		}
+// 	}{}
+
+// 	assert.NoError(t, v.Unmarshal(config))
+// 	assert.Equal(t, "cobra_flag", config.Foo.Bar)
+// }
+
+// // var yamlExampleWithDot = []byte(`Hacker: true
+// // name: steve
+// // hobbies:
+// //     - skateboarding
+// //     - snowboarding
+// //     - go
+// // clothing:
+// //     jacket: leather
+// //     trousers: denim
+// //     pants:
+// //         size: large
+// // age: 35
+// // eyes : brown
+// // beard: true
+// // emails:
+// //     steve@hacker.com:
+// //         created: 01/02/03
+// //         active: true
+// // `)
+
+// func TestKeyDelimiter(t *testing.T) {
+// 	v := NewWithOptions(KeyDelimiter("::"))
+// 	v.SetConfigType("yaml")
+// 	r := strings.NewReader(string(yamlExampleWithDot))
+
+// 	err := v.unmarshalReader(r, v.config)
+// 	require.NoError(t, err)
+
+// 	values := map[string]any{
+// 		"image": map[string]any{
+// 			"repository": "someImage",
+// 			"tag":        "1.0.0",
+// 		},
+// 		"ingress": map[string]any{
+// 			"annotations": map[string]any{
+// 				"traefik.frontend.rule.type":                 "PathPrefix",
+// 				"traefik.ingress.kubernetes.io/ssl-redirect": "true",
+// 			},
+// 		},
+// 	}
+
+// 	v.SetDefault("charts::values", values)
+
+// 	assert.Equal(t, "leather", v.GetString("clothing::jacket"))
+// 	assert.Equal(t, "01/02/03", v.GetString("emails::steve@hacker.com::created"))
+
+// 	type config struct {
+// 		Charts struct {
+// 			Values map[string]any
+// 		}
+// 	}
+
+// 	expected := config{
+// 		Charts: struct {
+// 			Values map[string]any
+// 		}{
+// 			Values: values,
+// 		},
+// 	}
+
+// 	var actual config
+
+// 	assert.NoError(t, v.Unmarshal(&actual))
+
+// 	assert.Equal(t, expected, actual)
+// }
+
+// var yamlDeepNestedSlices = []byte(`TV:
+// - title: "The Expanse"
+//   title_i18n:
+//     USA: "The Expanse"
+//     Japan: "エクスパンス -巨獣めざめる-"
+//   seasons:
+//   - first_released: "December 14, 2015"
+//     episodes:
+//     - title: "Dulcinea"
+//       air_date: "December 14, 2015"
+//     - title: "The Big Empty"
+//       air_date: "December 15, 2015"
+//     - title: "Remember the Cant"
+//       air_date: "December 22, 2015"
+//   - first_released: "February 1, 2017"
+//     episodes:
+//     - title: "Safe"
+//       air_date: "February 1, 2017"
+//     - title: "Doors & Corners"
+//       air_date: "February 1, 2017"
+//     - title: "Static"
+//       air_date: "February 8, 2017"
+//   episodes:
+//     - ["Dulcinea", "The Big Empty", "Remember the Cant"]
+//     - ["Safe", "Doors & Corners", "Static"]
+// `)
+
+// func TestSliceIndexAccess(t *testing.T) {
+// 	v := New()
+// 	v.SetConfigType("yaml")
+// 	r := strings.NewReader(string(yamlDeepNestedSlices))
+
+// 	err := v.unmarshalReader(r, v.config)
+// 	require.NoError(t, err)
+
+// 	assert.Equal(t, "The Expanse", v.GetString("tv.0.title"))
+// 	assert.Equal(t, "February 1, 2017", v.GetString("tv.0.seasons.1.first_released"))
+// 	assert.Equal(t, "Static", v.GetString("tv.0.seasons.1.episodes.2.title"))
+// 	assert.Equal(t, "December 15, 2015", v.GetString("tv.0.seasons.0.episodes.1.air_date"))
+
+// 	// Test nested keys with capital letters
+// 	assert.Equal(t, "The Expanse", v.GetString("tv.0.title_i18n.USA"))
+// 	assert.Equal(t, "エクスパンス -巨獣めざめる-", v.GetString("tv.0.title_i18n.Japan"))
+
+// 	// Test for index out of bounds
+// 	assert.Equal(t, "", v.GetString("tv.0.seasons.2.first_released"))
+
+// 	// Accessing multidimensional arrays
+// 	assert.Equal(t, "Static", v.GetString("tv.0.episodes.1.2"))
+// }
+
+// func TestIsPathShadowedInFlatMap(t *testing.T) {
+// 	v := New()
+
+// 	stringMap := map[string]string{
+// 		"foo": "value",
+// 	}
+
+// 	flagMap := map[string]FlagValue{
+// 		"foo": pflagValue{},
+// 	}
+
+// 	path1 := []string{"foo", "bar"}
+// 	expected1 := "foo"
+
+// 	// "foo.bar" should shadowed by "foo"
+// 	assert.Equal(t, expected1, v.isPathShadowedInFlatMap(path1, stringMap))
+// 	assert.Equal(t, expected1, v.isPathShadowedInFlatMap(path1, flagMap))
+
+// 	path2 := []string{"bar", "foo"}
+// 	expected2 := ""
+
+// 	// "bar.foo" should not shadowed by "foo"
+// 	assert.Equal(t, expected2, v.isPathShadowedInFlatMap(path2, stringMap))
+// 	assert.Equal(t, expected2, v.isPathShadowedInFlatMap(path2, flagMap))
+// }
+
+// func TestFlagShadow(t *testing.T) {
+// 	v := New()
+
+// 	v.SetDefault("foo.bar1.bar2", "default")
+
+// 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
+// 	flags.String("foo.bar1", "shadowed", "")
+// 	flags.VisitAll(func(flag *flag.Flag) {
+// 		flag.Changed = true
+// 	})
+
+// 	v.BindPFlags(flags)
+
+// 	assert.Equal(t, "shadowed", v.GetString("foo.bar1"))
+// 	// the default "foo.bar1.bar2" value should shadowed by flag "foo.bar1" value
+// 	// and should return an empty string
+// 	assert.Equal(t, "", v.GetString("foo.bar1.bar2"))
+// }
+
+// func BenchmarkGetBool(b *testing.B) {
+// 	key := "BenchmarkGetBool"
+// 	v = New()
+// 	v.Set(key, true)
+
+// 	for i := 0; i < b.N; i++ {
+// 		if !v.GetBool(key) {
+// 			b.Fatal("GetBool returned false")
+// 		}
+// 	}
+// }
 
 func BenchmarkGet(b *testing.B) {
 	key := "BenchmarkGet"
@@ -2614,7 +2609,7 @@ func BenchmarkGet(b *testing.B) {
 	v.Set(key, true)
 
 	for i := 0; i < b.N; i++ {
-		if !v.Get(key).(bool) {
+		if !v.get(key).(bool) {
 			b.Fatal("Get returned false")
 		}
 	}

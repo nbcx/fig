@@ -76,11 +76,17 @@ func (c Codec) Decode(b []byte, v map[string]any) error {
 		section := sections[i]
 		keys := section.Keys()
 
+		name := section.Name()
 		for j := 0; j < len(keys); j++ {
 			key := keys[j]
-			value := cfg.Section(section.Name()).Key(key.Name()).String()
+			value := cfg.Section(name).Key(key.Name()).String()
 
-			deepestMap := deepSearch(v, strings.Split(section.Name(), c.keyDelimiter()))
+			if name == "DEFAULT" {
+				v[key.Name()] = value
+				continue
+			}
+
+			deepestMap := deepSearch(v, strings.Split(name, c.keyDelimiter()))
 
 			// set innermost value
 			deepestMap[key.Name()] = value
