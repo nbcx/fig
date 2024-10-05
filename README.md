@@ -1,9 +1,6 @@
 ## Clone from Viper repository
 
-https://gitter.im/spf13/viper
-
-[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#configuration)
-[![run on repl.it](https://repl.it/badge/github/sagikazarmark/Viper-example)](https://repl.it/@sagikazarmark/Viper-example#main.go)
+github.com/spf13/viper
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/spf13/viper/ci.yaml?branch=master&style=flat-square)](https://github.com/spf13/viper/actions?query=workflow%3ACI)
 [![Join the chat at https://gitter.im/spf13/viper](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/spf13/viper?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -32,7 +29,7 @@ Many Go projects are built using Viper including:
 ## Install
 
 ```shell
-go get github.com/spf13/viper
+go get github.com/nbcx/fig
 ```
 
 **Note:** Viper uses [Go Modules](https://go.dev/wiki/Modules) to manage dependencies.
