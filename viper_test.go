@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/nbcx/fig/internal/testutil"
 	"github.com/nbcx/flag"
-	"github.com/nbcx/go-config/fig/internal/testutil"
 )
 
 // var yamlExample = []byte(`Hacker: true

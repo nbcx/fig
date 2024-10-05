@@ -34,8 +34,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cast"
 
+	"github.com/nbcx/fig/internal/features"
 	"github.com/nbcx/flag"
-	"github.com/nbcx/go-config/fig/internal/features"
 	"github.com/nbcx/go-kit/to"
 )
 
@@ -662,14 +662,19 @@ func (v *Viper) SetTypeByDefaultValue(enable bool) {
 // override, flag, env, config file, key/value store, default
 //
 // Get returns an interface. For a specific value use one of the Get____ methods.
-func (v *Viper) Get(key string, def ...any) (vl to.Value) {
+func (v *Viper) Get(key string, def ...any) (vl *to.Value) {
 	if val := v.get(key); val != nil {
-		return to.ValueF(val)
+		return to.V(val)
 	}
 	if len(def) > 0 {
-		return to.ValueF(def[0])
+		return to.V(def[0])
 	}
 	return vl
+}
+
+// Must always able to obtain a string
+func (v *Viper) Must(key string, def ...any) string {
+	return v.Get(key, def...).String()
 }
 
 func (v *Viper) get(key string) any {

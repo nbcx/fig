@@ -14,7 +14,7 @@ import (
 
 	crypt "github.com/sagikazarmark/crypt/config"
 
-	"github.com/nbcx/go-config/fig"
+	"github.com/nbcx/fig"
 )
 
 type remoteConfigProvider struct{}

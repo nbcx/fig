@@ -1,4 +1,4 @@
-module github.com/nbcx/go-config/fig/remote
+module github.com/nbcx/fig/remote
 
 go 1.23.0
 
