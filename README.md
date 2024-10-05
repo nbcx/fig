@@ -1,10 +1,6 @@
-> ## Viper v2 feedback
->
-> Viper is heading towards v2 and we would love to hear what _**you**_ would like to see in it. Share your thoughts here: https://forms.gle/R6faU74qPRPAzchZ9
->
-> **Thank you!**
+## Clone from Viper repository
 
-![Viper](.github/logo.png?raw=true)
+https://gitter.im/spf13/viper
 
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#configuration)
 [![run on repl.it](https://repl.it/badge/github/sagikazarmark/Viper-example)](https://repl.it/@sagikazarmark/Viper-example#main.go)
