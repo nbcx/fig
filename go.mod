@@ -2,11 +2,13 @@ module github.com/nbcx/fig
 
 go 1.23.0
 
+// replace github.com/nbcx/kig => ../kit
+
 require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-viper/mapstructure/v2 v2.1.0
 	github.com/nbcx/flag v1.0.0
-	github.com/nbcx/go-kit v0.0.1
+	github.com/nbcx/kit v0.0.2
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/sagikazarmark/locafero v0.6.0
 	github.com/spf13/afero v1.11.0
