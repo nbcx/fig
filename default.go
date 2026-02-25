@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/afero"
 
 	"github.com/nbcx/flag"
-	"github.com/nbcx/go-kit/to"
+	"github.com/nbcx/kit/to"
 )
 
 var v *Viper

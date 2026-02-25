@@ -36,7 +36,7 @@ import (
 
 	"github.com/nbcx/fig/internal/features"
 	"github.com/nbcx/flag"
-	"github.com/nbcx/go-kit/to"
+	"github.com/nbcx/kit/to"
 )
 
 // ConfigMarshalError happens when failing to marshal the configuration.
